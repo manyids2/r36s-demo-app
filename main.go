@@ -8,7 +8,13 @@ import (
 
 	"github.com/veandco/go-sdl2/gfx"
 	"github.com/veandco/go-sdl2/sdl"
+	"github.com/veandco/go-sdl2/ttf"
+
+	_ "embed"
 )
+
+//go:embed Lato-Bold.ttf
+var latoBold []byte
 
 type JoystickDisplay struct {
 	x, y       int32
@@ -27,6 +33,13 @@ func (j *JoystickDisplay) Render(renderer *sdl.Renderer) {
 }
 
 func main() {
+	var font *ttf.Font
+
+	if err := ttf.Init(); err != nil {
+		return
+	}
+	defer ttf.Quit()
+
 	if err := sdl.Init(sdl.INIT_EVERYTHING); err != nil {
 		panic(err)
 	}
@@ -56,9 +69,30 @@ func main() {
 
 	var joysticks [16]*sdl.Joystick
 
-	j1 := &JoystickDisplay{x: 100, y: 100, radius: 50}
-	j2 := &JoystickDisplay{x: 200, y: 100, radius: 50}
+	j1 := &JoystickDisplay{x: 100, y: 300, radius: 50}
+	j2 := &JoystickDisplay{x: 540, y: 300, radius: 50}
 
+	fontOps, err := sdl.RWFromMem(latoBold)
+	if err != nil {
+		panic(err)
+	}
+	// Load the font for our text
+	if font, err = ttf.OpenFontRW(fontOps, 0, 14); err != nil {
+		panic(err)
+	}
+	defer font.Close()
+	defer fontOps.Close()
+
+	// Create a red text with the font
+	text, err := font.RenderUTF8Blended("Hello, World!", sdl.Color{R: 255, G: 0, B: 0, A: 255})
+	if err != nil {
+		panic(err)
+	}
+	defer text.Free()
+	textTexture, err := renderer.CreateTextureFromSurface(text)
+	if err != nil {
+		panic(err)
+	}
 	running := true
 	tick := time.Tick(time.Microsecond * 33333)
 
@@ -69,6 +103,8 @@ func main() {
 
 		j1.Render(renderer)
 		j2.Render(renderer)
+
+		renderer.Copy(textTexture, nil, &sdl.Rect{200, 300, 100, 50})
 		/*
 			renderer.SetDrawColor(255, 255, 255, 255)
 			renderer.DrawPoint(150, 300)
