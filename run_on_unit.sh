@@ -2,7 +2,12 @@
 
 set -e
 
-IP=192.168.2.191
+IP=$1
+
+if [ -z "$IP" ] ; then
+	echo "Usage: $0 [unit ip address]" >&2
+	exit 1
+fi
 
 GOOS=linux GOARCH=arm64 CGO_ENABLED=1 go build -o r36s-demo-app . 
 du -h r36s-demo-app

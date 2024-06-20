@@ -1,4 +1,4 @@
-module github.com/AndreRenaud/r36s-demo-go-app
+module github.com/AndreRenaud/r36s-demo-app
 
 go 1.22.2
 
