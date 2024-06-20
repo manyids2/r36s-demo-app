@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/veandco/go-sdl2/gfx"
+	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
 
@@ -16,20 +17,75 @@ import (
 //go:embed Lato-Bold.ttf
 var latoBold []byte
 
+//go:embed CantinaBand3.ogg
+var soundData []byte
+
 type JoystickDisplay struct {
 	x, y       int32
 	radius     int32
 	joyX, joyY float32
+	pressed    bool
 }
 
+type TextDisplay struct {
+	x, y    int32
+	color   color.NRGBA
+	font    *ttf.Font
+	text    string
+	texture *sdl.Texture
+	surface *sdl.Surface
+}
+
+func (t *TextDisplay) SetText(text string) error {
+	t.Close()
+	t.text = text
+	surface, err := t.font.RenderUTF8Blended(t.text, sdl.Color(t.color))
+	if err != nil {
+		log.Printf("Cannot set text: %s", err)
+		return err
+	}
+	t.surface = surface
+	return nil
+}
+
+func (t *TextDisplay) Render(renderer *sdl.Renderer) {
+	if t.surface == nil {
+		return
+	}
+	if t.texture == nil {
+		texture, err := renderer.CreateTextureFromSurface(t.surface)
+		if err != nil {
+			log.Printf("cannot render text: %s", err)
+			return
+		}
+		t.texture = texture
+	}
+	r := sdl.Rect{X: t.x, Y: t.y, W: t.surface.W, H: t.surface.H}
+	renderer.Copy(t.texture, nil, &r)
+}
+
+func (t *TextDisplay) Close() error {
+	if t.texture != nil {
+		t.texture.Destroy()
+		t.texture = nil
+	}
+	if t.surface != nil {
+		t.surface.Free()
+		t.surface = nil
+	}
+	return nil
+}
 func (j *JoystickDisplay) Render(renderer *sdl.Renderer) {
 	col := sdl.Color(color.NRGBA{255, 0, 0, 255})
-	gfx.CircleColor(renderer, j.x, j.y, j.radius, col)
+	if j.pressed {
+		col = sdl.Color(color.NRGBA{255, 255, 0, 255})
+	}
+	gfx.FilledCircleColor(renderer, j.x, j.y, j.radius, col)
 
 	joyposx := j.x + int32(float32(j.radius)*j.joyX)
 	joyposy := j.y + int32(float32(j.radius)*j.joyY)
 	col = sdl.Color(color.NRGBA{0, 255, 0, 255})
-	gfx.CircleColor(renderer, joyposx, joyposy, j.radius/5, col)
+	gfx.FilledCircleColor(renderer, joyposx, joyposy, j.radius/5, col)
 }
 
 func main() {
@@ -51,6 +107,11 @@ func main() {
 	}
 	defer window.Destroy()
 
+	if err := mix.OpenAudio(44100, mix.DEFAULT_FORMAT, 2, 4096); err != nil {
+		panic(err)
+	}
+	defer mix.CloseAudio()
+
 	renderer, err := sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED)
 	if err != nil {
 		log.Printf("Couldn't get accelerated renderer: %s", err)
@@ -63,6 +124,9 @@ func main() {
 
 	sdl.JoystickEventState(sdl.ENABLE)
 
+	if rinfo, err := renderer.GetInfo(); err == nil {
+		log.Printf("Renderer info: %#v", rinfo)
+	}
 	log.Printf("Renderer: %#v", renderer)
 	log.Printf("Window: %#v", window)
 	log.Printf("num joysticks: %d", sdl.NumJoysticks())
@@ -77,22 +141,27 @@ func main() {
 		panic(err)
 	}
 	// Load the font for our text
-	if font, err = ttf.OpenFontRW(fontOps, 0, 14); err != nil {
+	if font, err = ttf.OpenFontRW(fontOps, 0, 48); err != nil {
 		panic(err)
 	}
 	defer font.Close()
 	defer fontOps.Close()
 
-	// Create a red text with the font
-	text, err := font.RenderUTF8Blended("Hello, World!", sdl.Color{R: 255, G: 0, B: 0, A: 255})
+	text := TextDisplay{x: 10, y: 30, color: color.NRGBA{255, 0, 255, 255}, font: font}
+
+	mix.VolumeMusic(48) // Turn the volume down a bit
+	mixOps, err := sdl.RWFromMem(soundData)
 	if err != nil {
 		panic(err)
 	}
-	defer text.Free()
-	textTexture, err := renderer.CreateTextureFromSurface(text)
+
+	mus, err := mix.LoadMUSRW(mixOps, 0)
 	if err != nil {
 		panic(err)
 	}
+	defer mus.Free()
+	defer mixOps.Close()
+
 	running := true
 	tick := time.Tick(time.Microsecond * 33333)
 
@@ -103,35 +172,8 @@ func main() {
 
 		j1.Render(renderer)
 		j2.Render(renderer)
+		text.Render(renderer)
 
-		renderer.Copy(textTexture, nil, &sdl.Rect{200, 300, 100, 50})
-		/*
-			renderer.SetDrawColor(255, 255, 255, 255)
-			renderer.DrawPoint(150, 300)
-
-			renderer.SetDrawColor(0, 0, 255, 255)
-			renderer.DrawLine(0, 0, 200, 200)
-
-			points := []sdl.Point{{0, 0}, {100, 300}, {100, 300}, {200, 0}}
-			renderer.SetDrawColor(255, 255, 0, 255)
-			renderer.DrawLines(points)
-
-			rect := sdl.Rect{300, 0, 200, 200}
-			renderer.SetDrawColor(255, 0, 0, 255)
-			renderer.DrawRect(&rect)
-
-			rects := []sdl.Rect{{400, 400, 100, 100}, {550, 350, 200, 200}}
-			renderer.SetDrawColor(0, 255, 255, 255)
-			renderer.DrawRects(rects)
-
-			rect = sdl.Rect{250, 250, 200, 200}
-			renderer.SetDrawColor(0, 255, 0, 255)
-			renderer.FillRect(&rect)
-
-			rects = []sdl.Rect{{500, 300, 100, 100}, {200, 300, 200, 200}}
-			renderer.SetDrawColor(255, 0, 255, 255)
-			renderer.FillRects(rects)
-		*/
 		renderer.Present()
 
 		<-tick
@@ -158,9 +200,16 @@ func main() {
 				fmt.Println("Joystick", t.Which, "trackball moved by", t.XRel, t.YRel)
 			case *sdl.JoyButtonEvent:
 				if t.State == sdl.PRESSED {
-					fmt.Println("Joystick", t.Which, "button", t.Button, "pressed")
+					text.SetText(fmt.Sprintf("Button %d/%d pressed", t.Which, t.Button))
 				} else {
-					fmt.Println("Joystick", t.Which, "button", t.Button, "released")
+					text.SetText(fmt.Sprintf("Button %d/%d released", t.Which, t.Button))
+				}
+				if t.Button == 14 {
+					j1.pressed = t.State == sdl.PRESSED
+				} else if t.Button == 15 {
+					j2.pressed = t.State == sdl.PRESSED
+				} else if t.Button == 2 && mix.Playing(-1) == 0 {
+					mus.Play(0)
 				}
 			case *sdl.JoyDeviceAddedEvent:
 				// Open joystick for use
