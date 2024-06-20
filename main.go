@@ -122,6 +122,8 @@ func main() {
 	}
 	defer renderer.Destroy()
 
+	sdl.ShowCursor(sdl.DISABLE)
+
 	sdl.JoystickEventState(sdl.ENABLE)
 
 	if rinfo, err := renderer.GetInfo(); err == nil {
