@@ -26,13 +26,18 @@ func getLines(s string, n int) []string {
 func main() {
 	var font *ttf.Font
 
-	cmds := []string{"ip", "ifconfig"}
+	cmds := [][]string{{"ip", "-a", "address"}, {"ifconfig"}}
 	num_cmds := len(cmds)
 	outputs := [][]string{}
 	errors := [][]string{}
 	for _, c := range cmds {
 		fmt.Println("Running: ", c)
-		cmd := exec.Command(c)
+		var cmd *exec.Cmd
+		if len(c) > 1 {
+			cmd = exec.Command(c[0], c[1:]...)
+		} else {
+			cmd = exec.Command(c[0])
+		}
 		var outb, errb bytes.Buffer
 		cmd.Stdout = &outb
 		cmd.Stderr = &errb
@@ -89,11 +94,11 @@ func main() {
 	defer fontOps.Close()
 
 	cmd_text := TextDisplay{x: 10, y: 5, color: color.NRGBA{255, 0, 255, 255}, font: font}
-	out_texts := make([]TextDisplay, 10)
-	err_texts := make([]TextDisplay, 10)
-	for i := 0; i < 10; i++ {
+	out_texts := make([]TextDisplay, 15)
+	err_texts := make([]TextDisplay, 15)
+	for i := 0; i < 15; i++ {
 		out_texts[i] = TextDisplay{x: 10, y: int32((i * 15) + 25), color: color.NRGBA{255, 0, 255, 255}, font: font}
-		err_texts[i] = TextDisplay{x: 10, y: int32((i * 15) + 180), color: color.NRGBA{255, 0, 255, 255}, font: font}
+		err_texts[i] = TextDisplay{x: 10, y: int32((i * 15) + 240), color: color.NRGBA{255, 0, 255, 255}, font: font}
 	}
 
 	current := 0
