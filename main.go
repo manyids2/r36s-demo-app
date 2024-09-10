@@ -26,7 +26,7 @@ func getLines(s string, n int) []string {
 func main() {
 	var font *ttf.Font
 
-	cmds := [][]string{{"iw", "wlan0", "scan"}, {"ip", "-a", "address"}, {"ifconfig"}, {"lsusb"}, {"ls", "/usr/bin"}, {"cat", "/etc/network/interfaces"}}
+	cmds := [][]string{{"iw", "wlan0", "scan"}, {"ip", "link", "show"}, {"ifconfig"}, {"lsusb"}, {"ls", "/usr/bin"}, {"cat", "/etc/network/interfaces"}}
 	num_cmds := len(cmds)
 	outputs := [][]string{}
 	errors := [][]string{}
