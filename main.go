@@ -105,6 +105,8 @@ func main() {
 	running := true
 	tick := time.Tick(time.Microsecond * 33333)
 
+	var joysticks [16]*sdl.Joystick
+
 	for running {
 		renderer.SetDrawColor(0, 0, 0, 255)
 		renderer.Clear()
@@ -159,6 +161,17 @@ func main() {
 				if t.State == sdl.PRESSED {
 					current = (current + 1) % num_cmds
 				}
+			case *sdl.JoyDeviceAddedEvent:
+				// Open joystick for use
+				joysticks[int(t.Which)] = sdl.JoystickOpen(int(t.Which))
+				if joysticks[int(t.Which)] != nil {
+					fmt.Println("Joystick", t.Which, "connected")
+				}
+			case *sdl.JoyDeviceRemovedEvent:
+				if joystick := joysticks[int(t.Which)]; joystick != nil {
+					joystick.Close()
+				}
+				fmt.Println("Joystick", t.Which, "disconnected")
 			}
 		}
 	}
